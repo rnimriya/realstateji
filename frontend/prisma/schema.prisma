@@ -7,6 +7,12 @@ generator client {
   provider = "prisma-client-js"
 }
 
+generator py_client {
+  provider             = "prisma-client-py"
+  interface            = "asyncio"
+  recursive_type_depth = 5
+}
+
 enum DocumentStatus {
   PENDING
   PROCESSING
