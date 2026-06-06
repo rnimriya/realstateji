@@ -21,16 +21,15 @@ export default function UploadDocument() {
   // Helper to determine the backend API URL dynamically based on environment
   const getApiUrl = () => {
     if (typeof window !== "undefined") {
-      // On Vercel production, proxy requests to the Vercel services backend prefix
-      if (
-        window.location.hostname !== "localhost" &&
-        window.location.hostname !== "127.0.0.1"
-      ) {
-        return "/_/backend";
+      // If a public API URL is explicitly configured, use it
+      if (process.env.NEXT_PUBLIC_API_URL) {
+        return process.env.NEXT_PUBLIC_API_URL;
       }
+      // Otherwise, use the proxy route which is supported locally (via next.config.ts rewrites)
+      // and in production (via vercel.json routing).
+      return "/_/backend";
     }
-    // Locally, default to localhost:8000
-    return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    return "/_/backend";
   };
 
   const handleDrag = (e: React.DragEvent) => {
@@ -102,8 +101,20 @@ export default function UploadDocument() {
       });
 
       if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.detail || "Upload failed. Please try again.");
+        let errorMessage = "Upload failed. Please try again.";
+        try {
+          const contentType = response.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const errData = await response.json();
+            errorMessage = errData.detail || errorMessage;
+          } else {
+            const textData = await response.text();
+            errorMessage = textData || errorMessage;
+          }
+        } catch (parseErr) {
+          console.error("Failed to parse error response:", parseErr);
+        }
+        throw new Error(errorMessage);
       }
 
       const data: UploadResponse = await response.json();
