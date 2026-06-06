@@ -4,10 +4,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Dict, Any
 
+root_path = "/_/backend" if os.getenv("VERCEL") else ""
+
 app = FastAPI(
     title="Automated Document Extraction API",
     description="Python backend to handle PDF ingestion, OCR processing, and API endpoints for extraction logic.",
-    version="0.1.0"
+    version="0.1.0",
+    root_path=root_path
 )
 
 # Configure CORS to accept requests from Next.js frontend
