@@ -3,6 +3,8 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { verifyDocumentAction } from "@/app/actions/document";
+import Navbar from "@/components/Navbar";
+import { exportToCSV } from "@/lib/csv";
 
 interface DocumentData {
   id: string;
@@ -100,26 +102,20 @@ export default function DocumentReviewClient({ document: initialDoc }: DocumentR
   };
 
   return (
-    <div className="flex flex-col min-h-screen">
-      {/* Premium Header */}
-      <header className="sticky top-0 z-50 w-full bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md border-b border-zinc-150 dark:border-zinc-800 py-4 px-6 md:px-12 flex justify-between items-center transition-all duration-200">
-        <div className="flex items-center gap-3">
-          <Link href="/">
-            <button className="flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors font-medium">
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              Back to Ingestion
-            </button>
+    <div className="flex flex-col min-h-screen bg-zinc-50 dark:bg-black font-sans">
+      <Navbar />
+
+      {/* Breadcrumb Header */}
+      <div className="bg-white dark:bg-zinc-950 border-b border-zinc-150 dark:border-zinc-800 py-3.5 px-6 md:px-8 flex justify-between items-center transition-all duration-200">
+        <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
+          <Link
+            href="/dashboard"
+            className="hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors font-medium"
+          >
+            Dashboard
           </Link>
-          <span className="text-zinc-300 dark:text-zinc-700">|</span>
-          <span className="text-base font-bold text-zinc-900 dark:text-zinc-50 tracking-tight max-w-xs md:max-w-md truncate">
+          <span className="text-zinc-300 dark:text-zinc-750">/</span>
+          <span className="text-zinc-800 dark:text-zinc-200 font-semibold truncate max-w-xs md:max-w-md">
             {doc.fileName}
           </span>
         </div>
@@ -128,17 +124,17 @@ export default function DocumentReviewClient({ document: initialDoc }: DocumentR
         <div>
           {doc.status === "VERIFIED" ? (
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-900/30 shadow-sm shadow-emerald-500/5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
               Verified & Approved
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 border border-amber-200/50 dark:border-amber-900/30 shadow-sm shadow-amber-500/5">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-              Pending Verification
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-400 border border-indigo-200/50 dark:border-indigo-900/30 shadow-sm shadow-indigo-500/5">
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+              Needs Review
             </span>
           )}
         </div>
-      </header>
+      </div>
 
       {/* Split-Screen Dashboard Layout */}
       <main className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 p-6 md:p-8 max-w-7xl mx-auto w-full">
@@ -270,41 +266,65 @@ export default function DocumentReviewClient({ document: initialDoc }: DocumentR
                 </div>
               )}
 
-              <button
-                type="submit"
-                disabled={saving || doc.status === "VERIFIED"}
-                className="w-full py-3 px-4 bg-violet-600 hover:bg-violet-700 disabled:bg-zinc-200 dark:disabled:bg-zinc-800 disabled:text-zinc-400 dark:disabled:text-zinc-600 text-white rounded-xl font-medium transition duration-200 shadow-md shadow-violet-500/10 flex items-center justify-center gap-2 hover:-translate-y-0.5 active:translate-y-0 transform"
-              >
-                {saving ? (
-                  <>
-                    <svg
-                      className="animate-spin h-5 w-5 text-white"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      />
-                    </svg>
-                    <span>Saving Changes...</span>
-                  </>
-                ) : doc.status === "VERIFIED" ? (
-                  <span>Verified & Approved</span>
-                ) : (
-                  <span>Save & Verify</span>
-                )}
-              </button>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => exportToCSV(doc.extractedData, doc.fileName)}
+                  className="flex-1 py-3 px-4 bg-white hover:bg-zinc-50 border border-zinc-250 dark:bg-zinc-900 dark:hover:bg-zinc-800 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-xl font-semibold transition duration-150 flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <svg
+                    className="w-4 h-4 text-zinc-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2500/svg"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                    />
+                  </svg>
+                  Export CSV
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={saving || doc.status === "VERIFIED"}
+                  className="flex-1 py-3 px-4 bg-violet-600 hover:bg-violet-700 disabled:bg-zinc-200 dark:disabled:bg-zinc-800 disabled:text-zinc-400 dark:disabled:text-zinc-600 text-white rounded-xl font-semibold transition duration-200 shadow-md shadow-violet-500/10 flex items-center justify-center gap-2 hover:-translate-y-0.5 active:translate-y-0 transform cursor-pointer"
+                >
+                  {saving ? (
+                    <>
+                      <svg
+                        className="animate-spin h-5 w-5 text-white"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        />
+                      </svg>
+                      <span>Saving...</span>
+                    </>
+                  ) : doc.status === "VERIFIED" ? (
+                    <span>Verified</span>
+                  ) : (
+                    <span>Save & Verify</span>
+                  )}
+                </button>
+              </div>
             </div>
           </form>
         </div>

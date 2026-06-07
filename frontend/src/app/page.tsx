@@ -1,38 +1,10 @@
 import UploadDocument from "@/components/UploadDocument";
+import Navbar from "@/components/Navbar";
 
 export default function Home() {
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black font-sans flex flex-col">
-      {/* Header Bar */}
-      <header className="w-full bg-white dark:bg-zinc-950 border-b border-zinc-150 dark:border-zinc-800 py-4 px-6 md:px-12 flex justify-between items-center">
-        <div className="flex items-center gap-3">
-          {/* Logo Icon */}
-          <div className="bg-violet-600 p-2 rounded-lg text-white shadow-md shadow-violet-500/10">
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
-          </div>
-          <span className="text-lg font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">
-            DocuExtract AI
-          </span>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="h-8 w-8 rounded-full bg-violet-100 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-850 flex items-center justify-center text-sm font-semibold text-violet-700 dark:text-violet-400">
-            U
-          </div>
-        </div>
-      </header>
+      <Navbar />
 
       {/* Main Panel */}
       <main className="flex-1 flex flex-col justify-center items-center px-4 py-16 md:py-24">
