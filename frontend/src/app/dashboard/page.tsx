@@ -32,9 +32,19 @@ function formatDate(dateString: string): string {
   });
 }
 
-export default async function DashboardPage() {
+import PaymentVerification from "./PaymentVerification";
+
+interface DashboardPageProps {
+  searchParams: Promise<{ session_id?: string }>;
+}
+
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+  const { session_id } = await searchParams;
   const user = await getOrCreateDefaultUser();
   if (user.subscriptionStatus !== "active") {
+    if (session_id) {
+      return <PaymentVerification />;
+    }
     redirect("/pricing");
   }
 

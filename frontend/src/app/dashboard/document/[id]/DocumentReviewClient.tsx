@@ -53,8 +53,8 @@ export default function DocumentReviewClient({ document: initialDoc }: DocumentR
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<boolean>(false);
 
-  // Serve document URL from Next.js public uploads folder
-  const documentUrl = doc.fileKey;
+  // Serve document URL from Next.js public uploads folder (ensure leading slash)
+  const documentUrl = doc.fileKey.startsWith("/") ? doc.fileKey : `/${doc.fileKey}`;
 
   const handleFieldChange = (key: string, value: string) => {
     setFormData((prev) => ({

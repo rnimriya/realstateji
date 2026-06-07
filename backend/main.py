@@ -171,6 +171,11 @@ async def upload_document(file: UploadFile = File(...)):
 
         # 2. Extract raw text from the PDF
         raw_text = extract_pdf_text(file_bytes)
+        if not raw_text.strip():
+            raise ValueError(
+                "No readable text content could be extracted from this PDF. "
+                "Please make sure the document contains selectable text and is not an image-only scan or empty."
+            )
 
         # 3. Process extraction using simulated AI clauses function
         extracted_data = extract_clauses_with_ai(raw_text)
