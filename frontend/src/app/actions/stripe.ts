@@ -4,7 +4,7 @@ import Stripe from "stripe";
 import { getOrCreateDefaultUser } from "@/lib/user";
 
 // Initialize Stripe Client using env secrets
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_dummy");
 
 /**
  * Server Action to initialize a Stripe Checkout Session for subscription billing.
