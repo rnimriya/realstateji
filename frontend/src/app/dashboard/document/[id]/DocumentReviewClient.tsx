@@ -5,6 +5,9 @@ import Link from "next/link";
 import { verifyDocumentAction } from "@/app/actions/document";
 import Navbar from "@/components/Navbar";
 import { exportToCSV } from "@/lib/csv";
+import { Prisma } from "@prisma/client";
+
+type SafeJsonValue = string | number | boolean | null | { [key: string]: SafeJsonValue } | SafeJsonValue[];
 
 interface DocumentData {
   id: string;
@@ -12,7 +15,7 @@ interface DocumentData {
   fileKey: string;
   fileSize: number;
   status: string;
-  extractedData: any; // Stored JSON
+  extractedData: Prisma.JsonValue; // Stored JSON
   organizationId: string;
   uploadedById?: string | null;
   createdAt: string;
@@ -34,11 +37,14 @@ function formatLabel(key: string): string {
 export default function DocumentReviewClient({ document: initialDoc }: DocumentReviewClientProps) {
   const [doc, setDoc] = useState<DocumentData>(initialDoc);
   const [formData, setFormData] = useState<Record<string, string>>(() => {
-    const data = initialDoc.extractedData || {};
+    const data = (initialDoc.extractedData && typeof initialDoc.extractedData === "object" && !Array.isArray(initialDoc.extractedData))
+      ? (initialDoc.extractedData as Record<string, SafeJsonValue>)
+      : {};
     // Ensure all values are converted to strings for editing
     const initialForm: Record<string, string> = {};
     Object.keys(data).forEach((key) => {
-      initialForm[key] = typeof data[key] === "object" ? JSON.stringify(data[key]) : String(data[key]);
+      const val = data[key];
+      initialForm[key] = typeof val === "object" && val !== null ? JSON.stringify(val) : String(val);
     });
     return initialForm;
   });
@@ -67,7 +73,7 @@ export default function DocumentReviewClient({ document: initialDoc }: DocumentR
 
     try {
       // Re-construct the JSON object to update
-      const updatedJson: Record<string, any> = {};
+      const updatedJson: Record<string, SafeJsonValue> = {};
       Object.keys(formData).forEach((key) => {
         const val = formData[key];
         // Attempt parsing if it looks like a JSON array/object, otherwise keep string
@@ -93,9 +99,10 @@ export default function DocumentReviewClient({ document: initialDoc }: DocumentR
       } else {
         throw new Error(res.error || "Failed to update document.");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Save error:", err);
-      setError(err.message || "An unexpected error occurred while saving.");
+      const message = err instanceof Error ? err.message : "An unexpected error occurred while saving.";
+      setError(message);
     } finally {
       setSaving(false);
     }
@@ -178,7 +185,7 @@ export default function DocumentReviewClient({ document: initialDoc }: DocumentR
             {/* Scrollable Fields Panel */}
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
               <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-2">
-                Edit any fields below to correct the AI extraction, then click "Save & Verify" to lock the results and update the status.
+                Edit any fields below to correct the AI extraction, then click &quot;Save &amp; Verify&quot; to lock the results and update the status.
               </p>
 
               {Object.keys(formData).length > 0 ? (
@@ -269,7 +276,7 @@ export default function DocumentReviewClient({ document: initialDoc }: DocumentR
               <div className="flex gap-3">
                 <button
                   type="button"
-                  onClick={() => exportToCSV(doc.extractedData, doc.fileName)}
+                  onClick={() => exportToCSV(doc.extractedData as Record<string, unknown>, doc.fileName)}
                   className="flex-1 py-3 px-4 bg-white hover:bg-zinc-50 border border-zinc-250 dark:bg-zinc-900 dark:hover:bg-zinc-800 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-xl font-semibold transition duration-150 flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <svg

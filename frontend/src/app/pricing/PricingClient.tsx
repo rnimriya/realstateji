@@ -17,7 +17,7 @@ export default function PricingClient() {
       } else {
         setError(result.error || "Failed to initialize subscription checkout.");
       }
-    } catch (err: any) {
+    } catch {
       setError("An unexpected error occurred. Please try again.");
     } finally {
       setLoading(false);

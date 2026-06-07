@@ -2,7 +2,7 @@
  * Triggers a client-side download of a CSV file generated from the extracted document clauses.
  * Outputs a single row of values corresponding to the extraction keys as column headers.
  */
-export function exportToCSV(data: Record<string, any>, fileName: string) {
+export function exportToCSV(data: Record<string, unknown>, fileName: string) {
   if (!data || Object.keys(data).length === 0) {
     console.error("No data available to export to CSV.");
     return;

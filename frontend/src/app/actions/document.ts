@@ -2,11 +2,12 @@
 
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
 
 /**
  * Server Action to save edited clause extractions and update the document status to VERIFIED.
  */
-export async function verifyDocumentAction(id: string, updatedData: Record<string, any>) {
+export async function verifyDocumentAction(id: string, updatedData: Prisma.InputJsonValue) {
   try {
     const updatedDocument = await prisma.document.update({
       where: { id },
@@ -23,11 +24,12 @@ export async function verifyDocumentAction(id: string, updatedData: Record<strin
       success: true,
       document: JSON.parse(JSON.stringify(updatedDocument)),
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Failed to verify document:", error);
+    const message = error instanceof Error ? error.message : "An unexpected error occurred while saving.";
     return {
       success: false,
-      error: error.message || "An unexpected error occurred while saving.",
+      error: message,
     };
   }
 }

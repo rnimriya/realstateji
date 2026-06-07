@@ -48,11 +48,12 @@ export async function createCheckoutSessionAction() {
       success: true,
       url: session.url,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Stripe Checkout Error:", error);
+    const message = error instanceof Error ? error.message : "Failed to initiate checkout session.";
     return {
       success: false,
-      error: error.message || "Failed to initiate checkout session.",
+      error: message,
     };
   }
 }

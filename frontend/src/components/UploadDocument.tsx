@@ -8,7 +8,7 @@ interface UploadResponse {
   filename: string;
   status: string;
   file_size: number;
-  extracted_data?: Record<string, any>;
+  extracted_data?: Record<string, unknown>;
   document_id?: string;
 }
 
@@ -127,9 +127,10 @@ export default function UploadDocument() {
       setDocId(data.document_id || null);
       setSuccess(`Document "${data.filename}" uploaded and processed successfully!`);
       // Keep file shown but allow resetting
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Upload error:", err);
-      setError(err.message || "An unexpected error occurred during upload.");
+      const message = err instanceof Error ? err.message : "An unexpected error occurred during upload.";
+      setError(message);
     } finally {
       setLoading(false);
     }

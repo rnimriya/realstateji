@@ -21,10 +21,11 @@ export async function POST(req: Request) {
 
   try {
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
-  } catch (err: any) {
-    console.error(`Stripe Webhook Error: Signature verification failed. ${err.message}`);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error(`Stripe Webhook Error: Signature verification failed. ${message}`);
     return NextResponse.json(
-      { error: `Webhook Error: ${err.message}` },
+      { error: `Webhook Error: ${message}` },
       { status: 400 }
     );
   }
@@ -85,7 +86,7 @@ export async function POST(req: Request) {
       default:
         console.log(`INFO: Unhandled Stripe event type: ${event.type}`);
     }
-  } catch (dbError: any) {
+  } catch (dbError: unknown) {
     console.error("ERROR: Failed to update user database context in webhook:", dbError);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

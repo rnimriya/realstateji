@@ -2,6 +2,7 @@ import prisma from "@/lib/prisma";
 import { notFound, redirect } from "next/navigation";
 import DocumentReviewClient from "./DocumentReviewClient";
 import { getOrCreateDefaultUser } from "@/lib/user";
+import { Prisma } from "@prisma/client";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -31,6 +32,7 @@ export default async function DocumentDashboardPage({ params }: PageProps) {
   // Serialize Date objects to JSON-friendly strings for Client Components
   const serializedDoc = {
     ...doc,
+    extractedData: doc.extractedData as Prisma.JsonValue,
     createdAt: doc.createdAt.toISOString(),
     updatedAt: doc.updatedAt.toISOString(),
   };
