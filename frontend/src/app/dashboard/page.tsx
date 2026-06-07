@@ -1,7 +1,9 @@
 import React from "react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
 import Navbar from "@/components/Navbar";
+import { getOrCreateDefaultUser } from "@/lib/user";
 
 // Disable route caching to ensure the document list is always fresh
 export const revalidate = 0;
@@ -31,6 +33,11 @@ function formatDate(dateString: string): string {
 }
 
 export default async function DashboardPage() {
+  const user = await getOrCreateDefaultUser();
+  if (user.subscriptionStatus !== "active") {
+    redirect("/pricing");
+  }
+
   // Fetch all documents ordered by creation date descending
   const documents = await prisma.document.findMany({
     orderBy: {

@@ -36,17 +36,20 @@ model Organization {
 }
 
 model User {
-  id             String       @id @default(uuid())
-  email          String       @unique
-  passwordHash   String
-  firstName      String?
-  lastName       String?
-  role           UserRole     @default(MEMBER)
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  documents      Document[]
+  id                   String       @id @default(uuid())
+  email                String       @unique
+  passwordHash         String
+  firstName            String?
+  lastName             String?
+  role                 UserRole     @default(MEMBER)
+  organizationId       String
+  organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  subscriptionStatus   String       @default("inactive")
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+  documents            Document[]
 }
 
 model Document {

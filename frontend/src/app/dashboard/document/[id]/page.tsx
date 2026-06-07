@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import DocumentReviewClient from "./DocumentReviewClient";
+import { getOrCreateDefaultUser } from "@/lib/user";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -11,6 +12,11 @@ interface PageProps {
  * and forwards them to the client review component.
  */
 export default async function DocumentDashboardPage({ params }: PageProps) {
+  const user = await getOrCreateDefaultUser();
+  if (user.subscriptionStatus !== "active") {
+    redirect("/pricing");
+  }
+
   const { id } = await params;
 
   // Fetch the document record from PostgreSQL via Prisma
