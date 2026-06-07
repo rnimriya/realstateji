@@ -10,11 +10,10 @@ function getStripe() {
   return stripeInstance;
 }
 
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-
 export async function POST(req: Request) {
   const body = await req.text();
   const signature = req.headers.get("stripe-signature");
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
   if (!signature || !webhookSecret) {
     console.error("Stripe Webhook Error: Missing stripe-signature or webhook secret.");

@@ -11,8 +11,11 @@ from dotenv import load_dotenv
 from prisma import Prisma, Json
 from openai import OpenAI
 
-# Load environment variables from the shared frontend config with override enabled
-load_dotenv(dotenv_path="../frontend/.env", override=True)
+# Load environment variables from the shared frontend config or local env files with override enabled
+if os.path.exists("../frontend/.env"):
+    load_dotenv(dotenv_path="../frontend/.env", override=True)
+if os.path.exists(".env"):
+    load_dotenv(dotenv_path=".env", override=True)
 
 # Initialize Prisma Client
 db = Prisma()
@@ -38,11 +41,19 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Configure CORS to accept requests from Next.js frontend
+# Configure CORS to accept requests from Next.js frontend and production URLs
 origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
+# Allow adding CORS origins via BACKEND_CORS_ORIGINS environment variable
+cors_origins_env = os.getenv("BACKEND_CORS_ORIGINS")
+if cors_origins_env:
+    origins.extend([o.strip() for o in cors_origins_env.split(",") if o.strip()])
+# Fall back to NEXT_PUBLIC_APP_URL if defined
+frontend_url = os.getenv("NEXT_PUBLIC_APP_URL")
+if frontend_url:
+    origins.append(frontend_url.rstrip("/"))
 
 app.add_middleware(
     CORSMiddleware,
@@ -68,14 +79,21 @@ class UploadResponse(BaseModel):
 def extract_pdf_text(file_bytes: bytes) -> str:
     """
     Parses and extracts raw text from PDF binary data using pdfplumber.
+    Enforces maximum page limits to protect server resources.
     """
     extracted_text = ""
     try:
         with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
+            # Enforce 50-page maximum limit for resource protection
+            max_pages = 50
+            if len(pdf.pages) > max_pages:
+                raise ValueError(f"PDF contains too many pages ({len(pdf.pages)}). The maximum allowed limit is {max_pages} pages.")
             for page in pdf.pages:
                 page_text = page.extract_text()
                 if page_text:
                     extracted_text += page_text + "\n"
+    except ValueError:
+        raise
     except Exception as e:
         raise ValueError(f"Failed to parse PDF content: {str(e)}")
     return extracted_text
@@ -144,8 +162,9 @@ async def upload_document(file: UploadFile = File(...)):
     Receives PDF document uploads via multipart/form-data.
     Extracts raw text, simulates LLM extraction, and saves metadata into PostgreSQL.
     """
-    # Reload env dynamically to capture any developer key edits without server restarts
-    load_dotenv(dotenv_path="../frontend/.env", override=True)
+    # Reload env dynamically during local development to capture any key updates without server restarts
+    if os.path.exists("../frontend/.env"):
+        load_dotenv(dotenv_path="../frontend/.env", override=True)
 
     # 1. Validate file format
     if not file.filename.lower().endswith(".pdf"):
@@ -159,15 +178,25 @@ async def upload_document(file: UploadFile = File(...)):
         try:
             await db.connect()
         except Exception as conn_err:
+            print(f"CRITICAL: Database connection failed during request processing: {str(conn_err)}")
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=f"Database connection is offline. Please configure your DATABASE_URL correctly. Details: {str(conn_err)}"
+                detail="Database service is temporarily offline. Please try again later."
             )
 
     try:
         # Read the uploaded file binary data
         file_bytes = await file.read()
         file_size = len(file_bytes)
+
+        # 1.1 Limit file size to 10MB to prevent denial-of-service / disk space exhaustion
+        if file_size > 10 * 1024 * 1024:
+            raise ValueError("File is too large. Maximum allowed size is 10MB.")
+
+        # 1.2 Sanitize file name to prevent path traversal vulnerability (e.g. filename like ../../etc/passwd)
+        safe_filename = os.path.basename(file.filename)
+        if not safe_filename.lower().endswith(".pdf"):
+            raise ValueError("Sanitized filename has invalid extension. Only PDF files are supported.")
 
         # 2. Extract raw text from the PDF
         raw_text = extract_pdf_text(file_bytes)
@@ -183,7 +212,7 @@ async def upload_document(file: UploadFile = File(...)):
         # Write file to frontend public directory so it can be viewed in iframe
         public_upload_dir = os.path.abspath("../frontend/public/uploads")
         os.makedirs(public_upload_dir, exist_ok=True)
-        file_path = os.path.join(public_upload_dir, file.filename)
+        file_path = os.path.join(public_upload_dir, safe_filename)
         with open(file_path, "wb") as f:
             f.write(file_bytes)
 
@@ -199,8 +228,8 @@ async def upload_document(file: UploadFile = File(...)):
         # 5. Create Document record in PostgreSQL
         document = await db.document.create(
             data={
-                "fileName": file.filename,
-                "fileKey": f"/uploads/{file.filename}",  # Serve directly from Next.js public/uploads
+                "fileName": safe_filename,
+                "fileKey": f"/uploads/{safe_filename}",  # Serve directly from Next.js public/uploads
                 "fileSize": file_size,
                 "status": "COMPLETED",
                 "extractedData": Json(extracted_data),
@@ -210,7 +239,7 @@ async def upload_document(file: UploadFile = File(...)):
 
         return UploadResponse(
             message="Document uploaded, text parsed, and clauses extracted successfully.",
-            filename=file.filename,
+            filename=safe_filename,
             status=document.status,
             file_size=file_size,
             extracted_data=extracted_data,
@@ -224,8 +253,9 @@ async def upload_document(file: UploadFile = File(...)):
             detail=str(val_err)
         )
     except Exception as e:
-        # Log and return errors gracefully
+        # Log error details internally to protect stack traces and connection strings from leaking to clients
+        print(f"CRITICAL: Production upload error occurred: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An error occurred during PDF processing or DB write: {str(e)}"
+            detail="An error occurred during PDF processing or database synchronization."
         )
