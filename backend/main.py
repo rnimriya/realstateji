@@ -4,14 +4,15 @@ import json
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, UploadFile, File, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Dict, Any, Optional
 import pdfplumber
 from dotenv import load_dotenv
 from prisma import Prisma, Json
+from openai import OpenAI
 
-# Load environment variables from the shared frontend config
-load_dotenv(dotenv_path="../frontend/.env")
+# Load environment variables from the shared frontend config with override enabled
+load_dotenv(dotenv_path="../frontend/.env", override=True)
 
 # Initialize Prisma Client
 db = Prisma()
@@ -79,20 +80,52 @@ def extract_pdf_text(file_bytes: bytes) -> str:
         raise ValueError(f"Failed to parse PDF content: {str(e)}")
     return extracted_text
 
+class ContractExtraction(BaseModel):
+    party_names: str = Field(description="Names of the parties involved in the contract/document, e.g. Company A & Company B")
+    termination_clause: str = Field(description="The complete clause specifying how the contract or lease can be terminated, or 'None specified' if not found")
+    renewal_date: Optional[str] = Field(None, description="The date or specific term describing renewal, or None if not found")
+    total_liability_limit: Optional[str] = Field(None, description="The maximum total financial liability limit specified, or None if not found")
+
 def extract_clauses_with_ai(raw_text: str) -> Dict[str, Any]:
     """
-    Simulates sending extracted PDF raw text to an LLM for structured clause extraction.
-    Returns a mock JSON payload of key terms.
+    Extracts structured contract clauses from raw text using OpenAI Structured Outputs (GPT-4o/GPT-4o-mini).
     """
-    # In a production app, this would involve prompt engineering and calling Gemini/OpenAI
-    return {
-        "party_names": "Alpha Boutique Law Firm & Omega Real Estate Group",
-        "termination_clause": "This Agreement may be terminated by either party upon thirty (30) days prior written notice.",
-        "total_liability": "$150,000 USD",
-        "effective_date": "2026-06-01",
-        "governing_law": "State of New York",
-        "raw_text_char_count": len(raw_text)
-    }
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key or api_key.strip() == "":
+        raise ValueError("OpenAI API key is missing. Please populate the OPENAI_API_KEY variable in your .env file.")
+
+    # Initialize client locally
+    client = OpenAI(api_key=api_key)
+
+    try:
+        completion = client.beta.chat.completions.parse(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are an expert legal and real estate document analyst. "
+                        "Analyze the provided raw document text and extract the key terms as defined in the schema. "
+                        "Ensure your extractions are accurate and quote directly from the text where appropriate."
+                    )
+                },
+                {
+                    "role": "user",
+                    "content": f"Here is the raw document text:\n\n{raw_text}"
+                }
+            ],
+            response_format=ContractExtraction,
+            timeout=30.0
+        )
+        
+        extracted = completion.choices[0].message.parsed
+        if not extracted:
+            raise ValueError("LLM returned an empty response or failed to parse.")
+            
+        return extracted.model_dump()
+        
+    except Exception as e:
+        raise RuntimeError(f"OpenAI API call failed: {str(e)}")
 
 @app.get("/health")
 async def health_check():
@@ -111,6 +144,9 @@ async def upload_document(file: UploadFile = File(...)):
     Receives PDF document uploads via multipart/form-data.
     Extracts raw text, simulates LLM extraction, and saves metadata into PostgreSQL.
     """
+    # Reload env dynamically to capture any developer key edits without server restarts
+    load_dotenv(dotenv_path="../frontend/.env", override=True)
+
     # 1. Validate file format
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(
@@ -176,6 +212,12 @@ async def upload_document(file: UploadFile = File(...)):
             document_id=document.id
         )
 
+    except ValueError as val_err:
+        # Return ValueError as bad requests
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(val_err)
+        )
     except Exception as e:
         # Log and return errors gracefully
         raise HTTPException(
