@@ -1,6 +1,6 @@
 import prisma from "@/lib/prisma";
 import { notFound, redirect } from "next/navigation";
-import DocumentReviewClient from "./DocumentReviewClient";
+import DocumentReviewClient from "@/app/dashboard/document/[id]/DocumentReviewClient";
 import { getOrCreateDefaultUser } from "@/lib/user";
 import { Prisma } from "@prisma/client";
 
