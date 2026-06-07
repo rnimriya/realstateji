@@ -3,8 +3,13 @@
 import Stripe from "stripe";
 import { getOrCreateDefaultUser } from "@/lib/user";
 
-// Initialize Stripe Client using env secrets
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_dummy");
+let stripeInstance: Stripe | null = null;
+function getStripe() {
+  if (!stripeInstance) {
+    stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_dummy");
+  }
+  return stripeInstance;
+}
 
 /**
  * Server Action to initialize a Stripe Checkout Session for subscription billing.
@@ -15,7 +20,7 @@ export async function createCheckoutSessionAction() {
     const user = await getOrCreateDefaultUser();
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
-    const session = await stripe.checkout.sessions.create({
+    const session = await getStripe().checkout.sessions.create({
       payment_method_types: ["card"],
       line_items: [
         {
