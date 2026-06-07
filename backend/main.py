@@ -62,6 +62,7 @@ class UploadResponse(BaseModel):
     status: str
     file_size: int
     extracted_data: Optional[Dict[str, Any]] = None
+    document_id: Optional[str] = None
 
 def extract_pdf_text(file_bytes: bytes) -> str:
     """
@@ -138,6 +139,13 @@ async def upload_document(file: UploadFile = File(...)):
         # 3. Process extraction using simulated AI clauses function
         extracted_data = extract_clauses_with_ai(raw_text)
 
+        # Write file to frontend public directory so it can be viewed in iframe
+        public_upload_dir = os.path.abspath("../frontend/public/uploads")
+        os.makedirs(public_upload_dir, exist_ok=True)
+        file_path = os.path.join(public_upload_dir, file.filename)
+        with open(file_path, "wb") as f:
+            f.write(file_bytes)
+
         # 4. Database Sync: Ensure default organization is available for the multi-tenant schema
         org = await db.organization.find_first()
         if not org:
@@ -151,7 +159,7 @@ async def upload_document(file: UploadFile = File(...)):
         document = await db.document.create(
             data={
                 "fileName": file.filename,
-                "fileKey": f"uploads/{file.filename}",  # Mock location path
+                "fileKey": f"/uploads/{file.filename}",  # Serve directly from Next.js public/uploads
                 "fileSize": file_size,
                 "status": "COMPLETED",
                 "extractedData": Json(extracted_data),
@@ -164,7 +172,8 @@ async def upload_document(file: UploadFile = File(...)):
             filename=file.filename,
             status=document.status,
             file_size=file_size,
-            extracted_data=extracted_data
+            extracted_data=extracted_data,
+            document_id=document.id
         )
 
     except Exception as e:

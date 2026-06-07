@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from "react";
+import Link from "next/link";
 
 interface UploadResponse {
   message: string;
@@ -8,6 +9,7 @@ interface UploadResponse {
   status: string;
   file_size: number;
   extracted_data?: Record<string, any>;
+  document_id?: string;
 }
 
 export default function UploadDocument() {
@@ -16,6 +18,7 @@ export default function UploadDocument() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [docId, setDocId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Helper to determine the backend API URL dynamically based on environment
@@ -81,6 +84,7 @@ export default function UploadDocument() {
     setFile(null);
     setError(null);
     setSuccess(null);
+    setDocId(null);
   };
 
   const handleUpload = async () => {
@@ -120,6 +124,7 @@ export default function UploadDocument() {
       const data: UploadResponse = await response.json();
       console.log("Successfully uploaded and extracted data:", data);
       
+      setDocId(data.document_id || null);
       setSuccess(`Document "${data.filename}" uploaded and processed successfully!`);
       // Keep file shown but allow resetting
     } catch (err: any) {
@@ -229,9 +234,25 @@ export default function UploadDocument() {
       )}
 
       {success && (
-        <div className="mt-4 p-3 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 rounded-lg text-sm border border-emerald-200 dark:border-emerald-900/30">
-          {success}
-          <p className="text-xs text-emerald-600 dark:text-emerald-500 mt-1">
+        <div className="mt-4 p-4 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 rounded-lg text-sm border border-emerald-200 dark:border-emerald-900/30">
+          <p className="font-semibold mb-2">{success}</p>
+          {docId && (
+            <Link href={`/dashboard/document/${docId}`}>
+              <button className="w-full mt-2 py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition duration-150 flex items-center justify-center gap-1.5 shadow-sm shadow-emerald-500/10 cursor-pointer">
+                Go to Review Dashboard
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                </svg>
+              </button>
+            </Link>
+          )}
+          <p className="text-xs text-emerald-600 dark:text-emerald-500 mt-2">
             Check the console to view the structured key-value extractions.
           </p>
         </div>
